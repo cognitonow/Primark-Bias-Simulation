@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Primark Identifying Bias Training</title>
+
+    <style>
+        /* --- Color Variables --- */
+        :root {
+            --primary-dark: #0099CC; /* Header, Card Back, Headings */
+            --primary-medium: #2AB8E6; /* Primary Buttons */
+            --primary-base: #66CCFF; /* Accents, Hovers */
+            --primary-light: #ADDFFF; /* Borders */
+            --primary-pale: #E0F7FF; /* Light BGs */
+            --text-light: #f0f0f0;
+            --text-dark: #333333;
+            --text-medium: #555555;
+            --bg-light: #f8f9fa; /* Was debrief bg */
+            --bg-body: #f0f0f0;
+            --decision-green: #28a745;
+            --decision-red: #dc3545;
+            --button-gray: #6c757d;
+            --button-gray-hover: #5a6268;
+            --border-light: #e0e5ea;
+            --border-medium: #ccc;
+        }
+
+        /* --- General Styles --- */
+        body { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; min-height: 100vh; background-color: var(--bg-body); font-family: Arial, sans-serif; padding: 0; margin: 0; box-sizing: border-box; }
+        *, *::before, *::after { box-sizing: inherit; }
+
+        /* --- Header Styles --- */
+        header { width: 100%; background-color: var(--primary-dark); color: white; padding: 15px 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0; }
+        header h1 { margin: 0; font-size: 1.5em; font-weight: 600; color: white; }
+
+        /* --- Main Content Wrapper --- */
+        .content-wrapper { width: 100%; padding: 20px; display: flex; flex-direction: column; align-items: center; flex-grow: 1; }
+
+        /* --- Intro Screen Styles --- */
+        #intro-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px; box-sizing: border-box; color: var(--text-dark); }
+        .intro-box { background-color: white; padding: 30px 40px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3); max-width: 600px; width: 90%; text-align: left; line-height: 1.6; }
+        .intro-box h2 { text-align: center; margin-top: 0; margin-bottom: 20px; color: var(--primary-dark); }
+        .intro-box p { margin-bottom: 15px; color: var(--text-medium); }
+        .intro-box ul { padding-left: 20px; margin-top: 0; margin-bottom: 15px;}
+        .intro-box li { margin-bottom: 5px; color: var(--text-medium);}
+        .intro-box button { display: block; margin: 30px auto 0; padding: 12px 30px; font-size: 1.1em; font-weight: bold; cursor: pointer; background-color: var(--primary-medium); color: white; border: none; border-radius: 5px; transition: background-color 0.3s; }
+        .intro-box button:hover { background-color: var(--primary-base); }
+
+        /* --- Main Tool Area Styles --- */
+        #main-content { display: none; width: 100%; display: flex; flex-direction: column; align-items: center; }
+        #progress-indicator { font-size: 1.1em; font-weight: bold; color: var(--text-dark); margin-bottom: 15px; padding: 5px 10px; background-color: var(--primary-pale); border-radius: 4px; border: 1px solid var(--border-medium); }
+        .tabs { display: none !important; }
+        .tab { padding: 10px 20px; cursor: pointer; background-color: #ddd; border: 1px solid var(--border-medium); border-bottom: none; border-radius: 5px 5px 0 0; margin-right: 5px; margin-bottom: -1px; transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+        .tab.active { background-color: var(--primary-dark); color: white; border-color: var(--primary-dark); position: relative; z-index: 1; }
+        .tab.completed { background-color: #e0f0e0; color: #336633; border-color: #b0d0b0; }
+        .tab.completed.active { background-color: var(--primary-dark); color: white; border-color: var(--primary-dark); }
+        .tab-content { display: none; width: 100%; max-width: 930px; background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2); border: 1px solid var(--border-medium); position: relative; margin-bottom: 20px; }
+        .tab-content.active { display: block; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; justify-content: center; margin-top: 10px; }
+
+        /* Flip Card Styles */
+        .flip-card { background-color: transparent; height: 600px; perspective: 1000px; cursor: pointer; }
+        .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s ease-in-out; transform-style: preserve-3d; }
+        .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+        .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 10px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2); box-sizing: border-box; overflow-y: auto; }
+
+        /* Card Front */
+        .flip-card-front { background-color: var(--bg-light); color: var(--text-dark); display: flex; flex-direction: column; align-items: center; padding: 20px; text-align: left; }
+        /* General Profile Pic Style */
+        .profile-pic {
+            width: 150px; height: 150px; border-radius: 50%;
+            object-fit: cover; display: block; flex-shrink: 0;
+            background-color: #FFFFFF; /* White Background */
+        }
+        /* Front Pic Specifics */
+        .flip-card-front .profile-pic { border: 2px solid #eee; padding: 3px; margin-bottom: 15px; }
+        .card-front-content { padding: 0 15px 15px 15px; font-size: 0.9em; line-height: 1.5; overflow-y: auto; overflow-x: hidden; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; flex-grow: 1; }
+        .card-front-content p { margin: 4px 0; display: flex; align-items: baseline; }
+        .card-front-content strong { flex-shrink: 0; width: 90px; color: var(--text-medium); margin-right: 7px; display: inline-block; vertical-align: baseline; }
+        .card-front-content span.content { flex-grow: 1; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; white-space: normal; text-align: left; display: inline-block; max-width: 100%; }
+        .flip-instruction { margin-top: auto; padding-top: 10px; text-align: center; font-style: italic; font-size: 0.9em; color: var(--text-medium); border-top: 1px solid #eee; flex-shrink: 0; }
+
+        /* Card Back */
+        .flip-card-back { background-color: var(--primary-dark); color: white; transform: rotateY(180deg); display: flex; flex-direction: column; align-items: stretch; padding: 20px; font-size: 0.9em; gap: 15px; box-sizing: border-box; }
+        .flip-card-back .profile-pic { border: 3px solid var(--primary-base); padding: 3px; margin-bottom: 20px; align-self: center; }
+
+        /* Checkbox Container & Custom Radios/Labels */
+        .checkbox-container { width: 100%; text-align: left; padding-left: 0; box-sizing: border-box; margin-top: 0; flex-shrink: 0; }
+        .checkbox-container input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+        .checkbox-container label { display: block; margin-bottom: 0.8em; cursor: pointer; font-size: 1em; color: var(--text-light); font-weight: bold; padding: 10px 15px 10px 35px; border: 2px solid var(--primary-light); border-radius: 5px; transition: background-color 0.2s, border-color 0.2s; position: relative; text-align: left; }
+        .checkbox-container label:last-child { margin-bottom: 0; }
+        .checkbox-container label:hover { background-color: rgba(255, 255, 255, 0.1); border-color: white; }
+        .checkbox-container input[type="radio"]:checked + label { background-color: rgba(255, 255, 255, 0.2); border-color: white; color: white; }
+        .checkbox-container input[type="radio"]:checked + label::before { content: '✔'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: white; font-size: 1.2em; font-weight: bold; }
+        .checkbox-container input[type="radio"]:disabled + label { cursor: not-allowed; opacity: 0.6; background-color: transparent; border-color: rgba(173, 223, 255, 0.5); }
+        .checkbox-container input[type="radio"]:disabled:checked + label { background-color: rgba(255, 255, 255, 0.1); border-color: var(--primary-light); }
+        .checkbox-container input[type="radio"]:disabled:checked + label::before { opacity: 0.6; }
+
+        /* Feedback Display */
+        .feedback-display { font-size: 1em; font-style: normal; padding: 15px; border-radius: 4px; width: 100%; max-width: 100%; text-align: left; line-height: 1.4; color: var(--text-light); display: none; box-sizing: border-box; margin: 10px 0 0 0; border-top: 1px solid rgba(255, 255, 255, 0.4); padding-top: 15px; background-color: rgba(0, 0, 0, 0.25); transition: opacity 0.4s ease-in-out; opacity: 0; flex-shrink: 0; /* Prevent shrinking */ }
+        .feedback-display.visible { display: block; opacity: 1; }
+
+        /* Scenario Section Styles */
+        .scenario-section { margin-top: 20px; margin-bottom: 20px; padding: 15px; border: 1px dashed var(--border-medium); border-radius: 5px; background-color: #f9f9f9; text-align: left; width: 100%; font-size: 1.0em; line-height: 1.5; }
+        .scenario-section p { margin-bottom: 0; color: #444; }
+        .scenario-section strong { color: var(--text-dark); }
+
+        /* Round/Proceed Button Styles */
+        .round-submit-container, .next-round-container { text-align: center; margin-top: 10px; padding-top: 15px; border-top: 1px solid #ddd; }
+        .round-submit-btn, .proceed-btn { padding: 12px 30px; font-size: 1.1em; font-weight: bold; cursor: pointer; color: white; border: none; border-radius: 5px; transition: background-color 0.3s, opacity 0.3s; }
+        .round-submit-btn { background-color: var(--primary-medium); }
+        .round-submit-btn:hover:not(:disabled) { background-color: var(--primary-base); }
+        .round-submit-btn:disabled { background-color: #ccc; color: #888; cursor: not-allowed; opacity: 0.7; }
+        .proceed-btn { background-color: var(--primary-dark); }
+        .proceed-btn:hover { background-color: var(--primary-medium); }
+
+        /* Info Pop-up Styles */
+        .popup-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
+        .popup-box { background-color: white; padding: 30px 40px; border-radius: 8px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25); max-width: 550px; width: 90%; text-align: left; position: relative; }
+        .popup-box h3 { margin-top: 0; margin-bottom: 15px; color: var(--text-dark); text-align: center; }
+        .popup-box p { margin-bottom: 20px; color: var(--text-medium); line-height: 1.6; white-space: pre-wrap; }
+        .popup-box button { display: block; margin: 20px auto 0; padding: 10px 25px; font-size: 1em; cursor: pointer; background-color: var(--primary-dark); color: white; border: none; border-radius: 5px; transition: background-color 0.3s; }
+        .popup-box button:hover { background-color: var(--primary-medium); }
+
+        /* Debrief Screen Styles */
+         #debrief-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(40, 60, 80, 0.85); display: none; justify-content: center; align-items: flex-start; z-index: 1900; padding: 20px; box-sizing: border-box; color: var(--text-dark); overflow-y: auto; }
+         .debrief-box { background-color: var(--bg-light); padding: 30px 40px; border-radius: 10px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2); max-width: 1000px; width: 95%; text-align: left; line-height: 1.7; margin: 30px 0; border-top: 5px solid var(--primary-dark); }
+         .debrief-box h2 { text-align: center; margin-top: 0; margin-bottom: 30px; color: var(--primary-dark); font-weight: 600; font-size: 1.8em; }
+         .debrief-section { margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--border-light); }
+         .debrief-section:last-of-type { border-bottom: none; margin-bottom: 0; }
+         .debrief-section h3 { margin-top: 0; margin-bottom: 15px; color: var(--primary-dark); font-size: 1.3em; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+         .bias-recap h3::before { content: '🧠'; }
+         #debrief-ticker-section h3::before { content: '📋'; }
+         .debrief-section ul { padding-left: 25px; margin-top: 0; list-style-type: disc; }
+         .debrief-section li { margin-bottom: 8px; }
+         .bias-recap ul { list-style-position: outside; padding-left: 1.5em; margin-left: 0; column-count: 2; column-gap: 40px; }
+         .bias-recap li { break-inside: avoid-column; page-break-inside: avoid; margin-bottom: 10px; }
+         @media (max-width: 700px) { .bias-recap ul { column-count: 1; } }
+         .debrief-close-btn { display: block; margin: 40px auto 0; padding: 12px 30px; font-size: 1.1em; font-weight: bold; cursor: pointer; background-color: var(--button-gray); color: white; border: none; border-radius: 5px; transition: background-color 0.3s; }
+         .debrief-close-btn:hover { background-color: var(--button-gray-hover); }
+
+        /* Ticker Box Styles */
+        .ticker-wrap { width: 100%; overflow: hidden; padding: 10px 0; position: relative; }
+         .ticker-wrap::before, .ticker-wrap::after { content: ''; position: absolute; top: 0; bottom: 0; width: 50px; z-index: 1; pointer-events: none; }
+         .ticker-wrap::before { left: 0; background: linear-gradient(to right, var(--bg-light), transparent); }
+         .ticker-wrap::after { right: 0; background: linear-gradient(to left, var(--bg-light), transparent); }
+        .ticker-content { display: inline-block; white-space: nowrap; padding-left: 100%; animation: ticker-rtl 80s linear infinite; /* Adjusted duration for more items */ will-change: transform; }
+        .ticker-content:hover { animation-play-state: paused; }
+        /* Updated ticker li styling */
+        .ticker-content li {
+             display: inline-flex; /* Use flex for alignment */
+             align-items: center; /* Vertically center image and text */
+             padding: 5px 20px;
+             font-size: 1.0em;
+             color: var(--text-medium);
+             border-right: 1px solid var(--border-medium);
+             vertical-align: middle; /* Helps ensure consistency */
+         }
+        .ticker-content li:last-child { border-right: none; }
+        /* NEW: Style for ticker images */
+        .ticker-content li img.ticker-profile-pic {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 10px; /* Space between image and text */
+            vertical-align: middle; /* Ensure baseline alignment if not using flex */
+            background-color: #eee; /* Fallback background */
+         }
+        .ticker-content li strong { color: var(--text-dark); font-weight: 600; margin-left: 5px; /* Space after image */ }
+        .ticker-content li .decision-potential { color: var(--decision-green); font-weight: 600; }
+        .ticker-content li .decision-notfit { color: var(--decision-red); font-weight: 600; }
+        @keyframes ticker-rtl { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        /* Record Section Hidden */
+        #recordSection { display: none; }
+
+        /* Footer Styles */
+        footer { width: 100%; background-color: var(--primary-pale); color: var(--text-medium); padding: 15px 20px; text-align: center; margin-top: 0; font-size: 0.8em; border-top: 1px solid var(--border-medium); flex-shrink: 0; }
+        footer p { margin: 0; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Primark Identifying Bias Training</h1>
+    </header>
+
+    <div class="content-wrapper">
+
+        <div id="intro-screen" class="intro-overlay">
+             <div class="intro-box">
+                 <h2>Welcome to the Candidate Selection Simulation</h2>
+                 <p>This Simulation presents several rounds of candidate selection scenarios. Your task is to:</p>
+                 <ul>
+                     <li>Review the scenario for each round (shown briefly in a pop-up).</li>
+                     <li>Examine the profiles of the candidates presented.</li>
+                     <li>Flip each profile card and select whether you consider the candidate a "Potential Hire" or "Not a fit" based *only* on the information provided.</li>
+                     <li>Submit your decisions for all candidates in the round together.</li>
+                 </ul>
+                 <p>Click below to begin.</p>
+                 <button id="start-exercise-btn">Start Exercise</button>
+             </div>
+        </div>
+
+        <div id="main-content">
+            <div id="progress-indicator">Round 1 of 5</div>
+
+            <div class="tabs"> </div>
+
+            <div class="tab-content active">
+                <div class="grid">
+                    <div class="flip-card" data-card-id="r1c1"><div class="flip-card-inner"><div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/7L7GnXSb/Emily-Chen.png" alt="Profile picture of Emily"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Emily</span></p><p><strong>Education:</strong><span class="content">Bachelor's degree in Marketing</span></p><p><strong>Background:</strong><span class="content">Middle class</span></p><p><strong>Experience:</strong><span class="content">5 years in digital marketing</span></p><p><strong>Attributes:</strong><span class="content">Creative, Strategic, Outgoing</span></p><p><strong>Highlight:</strong><span class="content">Successfully led a campaign that increased brand awareness by 30%</span></p><p><strong>Interest:</strong><span class="content">Photography</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/7L7GnXSb/Emily-Chen.png" alt="Profile picture of Emily"> <div class="checkbox-container" data-name="Emily" data-feedback-potential="You saw potential. Was this strongly influenced by her marketing degree and relevant experience, potentially overlooking other factors (Halo Effect)?" data-feedback-notfit="Marked as not a fit. Did any assumptions about 'marketing types' play a role, or were there specific objective criteria she didn't meet based on the limited info?"> <input type="radio" id="ph-r1c1" name="decision-r1c1" value="potential"><label for="ph-r1c1">Potential Hire</label> <input type="radio" id="nf-r1c1" name="decision-r1c1" value="notfit"><label for="nf-r1c1">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                    <div class="flip-card" data-card-id="r1c2"><div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/G3zBK4TP/Keisha.png" alt="Profile picture of Keisha"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Keisha</span></p><p><strong>Education:</strong><span class="content">High school diploma</span></p><p><strong>Background:</strong><span class="content">Working class</span></p><p><strong>Experience:</strong><span class="content">3 years in sales</span></p><p><strong>Attributes:</strong><span class="content">Determined, Practical, Team-player</span></p><p><strong>Highlight:</strong><span class="content">Top salesperson for two consecutive years</span></p><p><strong>Interest:</strong><span class="content">Basketball</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/G3zBK4TP/Keisha.png" alt="Profile picture of Keisha"> <div class="checkbox-container" data-name="Keisha" data-feedback-potential="You saw potential. Are you focusing on transferable skills (determination, sales success) or perhaps avoiding rating her low due to awareness of potential bias (Central Tendency/Corrective)?" data-feedback-notfit="Marked as not a fit. Was this decision heavily weighted by the lack of a marketing degree, potentially overlooking valuable sales skills and achievements (Experience/Stereotype Bias)?"> <input type="radio" id="ph-r1c2" name="decision-r1c2" value="potential"><label for="ph-r1c2">Potential Hire</label> <input type="radio" id="nf-r1c2" name="decision-r1c2" value="notfit"><label for="nf-r1c2">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                    <div class="flip-card" data-card-id="r1c3"><div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/TY4K8B9p/Mei-Lin.png" alt="Profile picture of Mei"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Mei</span></p><p><strong>Education:</strong><span class="content">Master's degree in Computer Science</span></p><p><strong>Background:</strong><span class="content">Upper middle class</span></p><p><strong>Experience:</strong><span class="content">2 years in data analysis</span></p><p><strong>Attributes:</strong><span class="content">Analytical, Tech-savvy, Detail-oriented</span></p><p><strong>Highlight:</strong><span class="content">Developed a data-driven strategy that improved customer retention by 15%</span></p><p><strong>Interest:</strong><span class="content">Reading science fiction</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/TY4K8B9p/Mei-Lin.png" alt="Profile picture of Mei"> <div class="checkbox-container" data-name="Mei" data-feedback-potential="You saw potential. Did her advanced degree and analytical background create a positive impression (Halo Effect), even if CS isn't directly marketing?" data-feedback-notfit="Marked as not a fit. Was this due to her experience being in data analysis rather than traditional marketing, or were other specific factors considered?"> <input type="radio" id="ph-r1c3" name="decision-r1c3" value="potential"><label for="ph-r1c3">Potential Hire</label> <input type="radio" id="nf-r1c3" name="decision-r1c3" value="notfit"><label for="nf-r1c3">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                </div>
+                <div class="scenario-section"> <p>You are looking to fill a position for a <strong>Marketing Manager</strong>. Review the profiles, make a selection for each, then submit your decisions for the round.</p> </div>
+                <div class="round-submit-container"> <button class="round-submit-btn" data-round-index="0" disabled>Submit Round 1 Decisions</button> </div>
+                <div class="next-round-container" style="display: none;"> <button class="proceed-btn" data-next-round="1">Proceed to Round 2</button> </div>
+            </div>
+
+            <div class="tab-content">
+                 <div class="grid">
+                      <div class="flip-card" data-card-id="r2c1"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/5twyCyMC/Ahmed-Khan.png" alt="Profile picture of Ahmed"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Ahmed</span></p><p><strong>Education:</strong><span class="content">Bachelor's degree in Software Engineering</span></p><p><strong>Background:</strong><span class="content">Middle class</span></p><p><strong>Experience:</strong><span class="content">4 years in software development</span></p><p><strong>Attributes:</strong><span class="content">Innovative, Tech-savvy, Introverted</span></p><p><strong>Highlight:</strong><span class="content">Created a mobile app with over 50,000 downloads</span></p><p><strong>Interest:</strong><span class="content">Playing chess</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/5twyCyMC/Ahmed-Khan.png" alt="Profile picture of Ahmed"> <div class="checkbox-container" data-name="Ahmed" data-feedback-potential="You saw potential. Did his relevant degree, experience, and app success create a strong positive impression (Halo Effect)?" data-feedback-notfit="Marked as not a fit. Was his 'introverted' attribute perceived negatively for a team role, or were there other specific skill gaps noted?"> <input type="radio" id="ph-r2c1" name="decision-r2c1" value="potential"><label for="ph-r2c1">Potential Hire</label> <input type="radio" id="nf-r2c1" name="decision-r2c1" value="notfit"><label for="nf-r2c1">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                      <div class="flip-card" data-card-id="r2c2"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/hGFhvxNn/Priya-Sharma.png" alt="Profile picture of Priya"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Priya</span></p><p><strong>Education:</strong><span class="content">Bachelor's degree in Law</span></p><p><strong>Background:</strong><span class="content">Middle class</span></p><p><strong>Experience:</strong><span class="content">2 years in legal consulting</span></p><p><strong>Attributes:</strong><span class="content">Analytical, Confident, Persuasive</span></p><p><strong>Highlight:</strong><span class="content">Successfully negotiated a major contract for a client</span></p><p><strong>Interest:</strong><span class="content">Traveling</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/hGFhvxNn/Priya-Sharma.png" alt="Profile picture of Priya"> <div class="checkbox-container" data-name="Priya" data-feedback-potential="You saw potential. Did her analytical skills or perhaps shared interests (Affinity Bias) influence this, despite the non-traditional background for a developer role?" data-feedback-notfit="Marked as not a fit. Was this primarily due to the mismatch between her Law background and the Software Developer role?"> <input type="radio" id="ph-r2c2" name="decision-r2c2" value="potential"><label for="ph-r2c2">Potential Hire</label> <input type="radio" id="nf-r2c2" name="decision-r2c2" value="notfit"><label for="nf-r2c2">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                      <div class="flip-card" data-card-id="r2c3"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/QdvK7v9R/David-O-Connell.png" alt="Profile picture of David"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">David</span></p><p><strong>Education:</strong><span class="content">High school diploma</span></p><p><strong>Background:</strong><span class="content">Working class</span></p><p><strong>Experience:</strong><span class="content">5 years in security services</span></p><p><strong>Attributes:</strong><span class="content">Brave, Disciplined, Strong</span></p><p><strong>Highlight:</strong><span class="content">Awarded Employee of the Year for outstanding service</span></p><p><strong>Interest:</strong><span class="content">Hiking</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/QdvK7v9R/David-O-Connell.png" alt="Profile picture of David"> <div class="checkbox-container" data-name="David" data-feedback-potential="You saw potential. Are you focusing on attributes like 'disciplined' as transferable, or perhaps avoiding a 'not fit' rating (Central Tendency)?" data-feedback-notfit="Marked as not a fit. Was this based on the lack of relevant technical education or experience for a software role?"> <input type="radio" id="ph-r2c3" name="decision-r2c3" value="potential"><label for="ph-r2c3">Potential Hire</label> <input type="radio" id="nf-r2c3" name="decision-r2c3" value="notfit"><label for="nf-r2c3">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                 </div>
+                 <div class="scenario-section"> <p>You are looking to fill a position for a <strong>Software Developer</strong>. Review the profiles, make a selection for each, then submit your decisions for the round.</p> </div>
+                 <div class="round-submit-container"> <button class="round-submit-btn" data-round-index="1" disabled>Submit Round 2 Decisions</button> </div>
+                 <div class="next-round-container" style="display: none;"> <button class="proceed-btn" data-next-round="2">Proceed to Round 3</button> </div>
+            </div>
+            <div class="tab-content">
+                 <div class="grid">
+                     <div class="flip-card" data-card-id="r3c1"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/d1jhz1HY/Fatima-Rossi.png" alt="Profile picture of Fatima"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Fatima</span></p><p><strong>Education:</strong><span class="content">Master's degree in Public Health</span></p><p><strong>Background:</strong><span class="content">Upper middle class</span></p><p><strong>Experience:</strong><span class="content">3 years in public health administration</span></p><p><strong>Attributes:</strong><span class="content">Empathetic, Organized, Dedicated</span></p><p><strong>Highlight:</strong><span class="content">Led a successful community health initiative that reduced infection rates by 20%</span></p><p><strong>Interest:</strong><span class="content">Gardening</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/d1jhz1HY/Fatima-Rossi.png" alt="Profile picture of Fatima"> <div class="checkbox-container" data-name="Fatima" data-feedback-potential="You saw potential. Was this influenced by a strong first impression or her relevant MPH degree and experience (Primacy/Halo)?" data-feedback-notfit="Marked as not a fit. Were specific requirements for the Coordinator role missing, or did any initial interaction negatively impact perception disproportionately (Horns effect from Primacy)?"> <input type="radio" id="ph-r3c1" name="decision-r3c1" value="potential"><label for="ph-r3c1">Potential Hire</label> <input type="radio" id="nf-r3c1" name="decision-r3c1" value="notfit"><label for="nf-r3c1">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                     <div class="flip-card" data-card-id="r3c2"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/Y9RSdP02/Carlos-Garcia.png" alt="Profile picture of Carlos"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Carlos</span></p><p><strong>Education:</strong><span class="content">Associate's degree in Culinary Arts</span></p><p><strong>Background:</strong><span class="content">Lower middle class</span></p><p><strong>Experience:</strong><span class="content">5 years as a chef</span></p><p><strong>Attributes:</strong><span class="content">Creative, Passionate, Hardworking</span></p><p><strong>Highlight:</strong><span class="content">Won a regional cooking competition</span></p><p><strong>Interest:</strong><span class="content">Playing guitar</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/Y9RSdP02/Carlos-Garcia.png" alt="Profile picture of Carlos"> <div class="checkbox-container" data-name="Carlos" data-feedback-potential="You saw potential. Are you focusing on transferable skills like creativity and hard work, or perhaps overlooking the lack of direct public health experience?" data-feedback-notfit="Marked as not a fit. Was this primarily due to his unrelated Culinary Arts background, or did a specific interaction or detail trigger a negative overall judgment (Horns Effect)?"> <input type="radio" id="ph-r3c2" name="decision-r3c2" value="potential"><label for="ph-r3c2">Potential Hire</label> <input type="radio" id="nf-r3c2" name="decision-r3c2" value="notfit"><label for="nf-r3c2">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                     <div class="flip-card" data-card-id="r3c3"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/8cyjzYgX/Lisa-Nguyen.png" alt="Profile picture of Lisa"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Lisa</span></p><p><strong>Education:</strong><span class="content">Bachelor's degree in Education</span></p><p><strong>Background:</strong><span class="content">Middle class</span></p><p><strong>Experience:</strong><span class="content">10 years as a teacher</span></p><p><strong>Attributes:</strong><span class="content">Knowledgeable, Patient, Organized</span></p><p><strong>Highlight:</strong><span class="content">Developed a new curriculum that improved student performance by 25%</span></p><p><strong>Interest:</strong><span class="content">Painting</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/8cyjzYgX/Lisa-Nguyen.png" alt="Profile picture of Lisa"> <div class="checkbox-container" data-name="Lisa" data-feedback-potential="You saw potential. Did her extensive teaching experience and organizational skills seem highly transferable, potentially creating a positive glow (Halo Effect)?" data-feedback-notfit="Marked as not a fit. Was her long experience in a different field (teaching vs. public health) seen as a significant barrier, potentially overlooking transferable coordination or program skills?"> <input type="radio" id="ph-r3c3" name="decision-r3c3" value="potential"><label for="ph-r3c3">Potential Hire</label> <input type="radio" id="nf-r3c3" name="decision-r3c3" value="notfit"><label for="nf-r3c3">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                </div>
+                 <div class="scenario-section"> <p>You are looking to fill a position for a <strong>Public Health Coordinator</strong>. Review the profiles, make a selection for each, then submit your decisions for the round.</p> </div>
+                 <div class="round-submit-container"> <button class="round-submit-btn" data-round-index="2" disabled>Submit Round 3 Decisions</button> </div>
+                 <div class="next-round-container" style="display: none;"> <button class="proceed-btn" data-next-round="3">Proceed to Round 4</button> </div>
+            </div>
+            <div class="tab-content">
+                 <div class="grid">
+                     <div class="flip-card" data-card-id="r4c1"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/hGFhvxNn/Priya-Sharma.png" alt="Profile picture of Priya"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Priya</span></p><p><strong>Education:</strong><span class="content">Bachelor's degree in Law</span></p><p><strong>Background:</strong><span class="content">Middle class</span></p><p><strong>Experience:</strong><span class="content">2 years in legal consulting</span></p><p><strong>Attributes:</strong><span class="content">Analytical, Confident, Persuasive</span></p><p><strong>Highlight:</strong><span class="content">Successfully negotiated a major contract for a client</span></p><p><strong>Interest:</strong><span class="content">Traveling</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/hGFhvxNn/Priya-Sharma.png" alt="Profile picture of Priya"> <div class="checkbox-container" data-name="Priya" data-feedback-potential="You saw potential. Her Law degree is directly relevant. Did shared interests or background also play a role (Affinity Bias), or was it based purely on qualifications?" data-feedback-notfit="Marked as not a fit. Despite the relevant degree, were there specific concerns about her limited years of experience, or perhaps an unfavorable comparison to other candidates?"> <input type="radio" id="ph-r4c1" name="decision-r4c1" value="potential"><label for="ph-r4c1">Potential Hire</label> <input type="radio" id="nf-r4c1" name="decision-r4c1" value="notfit"><label for="nf-r4c1">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                     <div class="flip-card" data-card-id="r4c2"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/xCnCyQ0F/Aisha-Khan.png" alt="Profile picture of Aisha"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Aisha</span></p><p><strong>Education:</strong><span class="content">PhD in Physics</span></p><p><strong>Background:</strong><span class="content">Upper class</span></p><p><strong>Experience:</strong><span class="content">5 years in research</span></p><p><strong>Attributes:</strong><span class="content">Intelligent, Innovative, Independent</span></p><p><strong>Highlight:</strong><span class="content">Published several influential research papers</span></p><p><strong>Interest:</strong><span class="content">Reading mystery novels</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/xCnCyQ0F/Aisha-Khan.png" alt="Profile picture of Aisha"> <div class="checkbox-container" data-name="Aisha" data-feedback-potential="You saw potential. Did her impressive academic background (PhD) create a positive impression (Halo Effect), even though Physics isn't directly related to a Legal Advisor role?" data-feedback-notfit="Marked as not a fit. Was this primarily due to the lack of legal education or experience? Consider if assumptions were made based on her academic field (Stereotyping)."> <input type="radio" id="ph-r4c2" name="decision-r4c2" value="potential"><label for="ph-r4c2">Potential Hire</label> <input type="radio" id="nf-r4c2" name="decision-r4c2" value="notfit"><label for="nf-r4c2">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                     <div class="flip-card" data-card-id="r4c3"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/d3QhvYpT/Imani-Abara.png" alt="Profile picture of Imani"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Imani</span></p><p><strong>Education:</strong><span class="content">Bachelor's degree in Business Administration</span></p><p><strong>Background:</strong><span class="content">Middle class</span></p><p><strong>Experience:</strong><span class="content">7 years in business management</span></p><p><strong>Attributes:</strong><span class="content">Strategic, Ambitious, Leadership</span></p><p><strong>Highlight:</strong><span class="content">Successfully led a team to increase company revenue by 15%</span></p><p><strong>Interest:</strong><span class="content">Playing soccer</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/d3QhvYpT/Imani-Abara.png" alt="Profile picture of Imani"> <div class="checkbox-container" data-name="Imani" data-feedback-potential="You saw potential. Did her strong leadership highlights or perhaps positive closing remarks (Recency Bias) influence this, despite the role being Legal Advisor?" data-feedback-notfit="Marked as not a fit. Was this decision based on the mismatch between her business management background and the legal requirements of the role?"> <input type="radio" id="ph-r4c3" name="decision-r4c3" value="potential"><label for="ph-r4c3">Potential Hire</label> <input type="radio" id="nf-r4c3" name="decision-r4c3" value="notfit"><label for="nf-r4c3">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                </div>
+                 <div class="scenario-section"> <p>You are looking to fill a position for a <strong>Legal Advisor</strong>. Review the profiles, make a selection for each, then submit your decisions for the round.</p> </div>
+                 <div class="round-submit-container"> <button class="round-submit-btn" data-round-index="3" disabled>Submit Round 4 Decisions</button> </div>
+                 <div class="next-round-container" style="display: none;"> <button class="proceed-btn" data-next-round="4">Proceed to Round 5</button> </div>
+            </div>
+            <div class="tab-content">
+                <div class="grid">
+                     <div class="flip-card" data-card-id="r5c1"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/7Z5Tfq63/Chen-Wu.png" alt="Profile picture of Chen"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Chen</span></p><p><strong>Education:</strong><span class="content">Bachelor's degree in Culinary Arts</span></p><p><strong>Background:</strong><span class="content">Lower middle class</span></p><p><strong>Experience:</strong><span class="content">6 years as a chef</span></p><p><strong>Attributes:</strong><span class="content">Creative, Passionate, Detail-oriented</span></p><p><strong>Highlight:</strong><span class="content">Managed a kitchen team that consistently received high customer satisfaction ratings</span></p><p><strong>Interest:</strong><span class="content">Cycling</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/7Z5Tfq63/Chen-Wu.png" alt="Profile picture of Chen"> <div class="checkbox-container" data-name="Chen" data-feedback-potential="You saw potential. Did his experience managing a kitchen team seem like relevant project management experience, or did a positive interaction overshadow his non-traditional background?" data-feedback-notfit="Marked as not a fit. Was this due to his Culinary Arts degree seeming unrelated, or did a minor interaction create a negative overall impression (Horns Effect)?"> <input type="radio" id="ph-r5c1" name="decision-r5c1" value="potential"><label for="ph-r5c1">Potential Hire</label> <input type="radio" id="nf-r5c1" name="decision-r5c1" value="notfit"><label for="nf-r5c1">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                     <div class="flip-card" data-card-id="r5c2"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/k4mV18ys/Elena-Petrova.png" alt="Profile picture of Elena"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Elena</span></p><p><strong>Education:</strong><span class="content">Bachelor's degree in Education</span></p><p><strong>Background:</strong><span class="content">Middle class</span></p><p><strong>Experience:</strong><span class="content">3 years as a teaching assistant</span></p><p><strong>Attributes:</strong><span class="content">Curious, Ambitious, Energetic</span></p><p><strong>Highlight:</strong><span class="content">Assisted in developing a new teaching method that improved student engagement</span></p><p><strong>Interest:</strong><span class="content">Dancing</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/k4mV18ys/Elena-Petrova.png" alt="Profile picture of Elena"> <div class="checkbox-container" data-name="Elena" data-feedback-potential="You saw potential. Was this influenced by her energy or a strong first impression (Primacy Bias)? Did her experience assisting seem relevant?" data-feedback-notfit="Marked as not a fit. Was her experience as an assistant seen as insufficient for a Project Manager role, or did initial impressions negatively color the evaluation (Primacy/Horns)?"> <input type="radio" id="ph-r5c2" name="decision-r5c2" value="potential"><label for="ph-r5c2">Potential Hire</label> <input type="radio" id="nf-r5c2" name="decision-r5c2" value="notfit"><label for="nf-r5c2">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                     <div class="flip-card" data-card-id="r5c3"> <div class="flip-card-inner"> <div class="flip-card-front"> <img class="profile-pic" src="https://i.postimg.cc/Vk0dz4G4/Sophie-Dubois.png" alt="Profile picture of Sophie"> <div class="card-front-content"> <p><strong>Name:</strong><span class="content">Sophie</span></p><p><strong>Education:</strong><span class="content">Bachelor's degree in Fine Arts</span></p><p><strong>Background:</strong><span class="content">Middle class</span></p><p><strong>Experience:</strong><span class="content">4 years as an artist</span></p><p><strong>Attributes:</strong><span class="content">Creative, Independent, Thoughtful</span></p><p><strong>Highlight:</strong><span class="content">Held several successful art exhibitions</span></p><p><strong>Interest:</strong><span class="content">Yoga</span></p><p class="flip-instruction">Flip the Profile to Select Candidate Status</p> </div> </div> <div class="flip-card-back"> <img class="profile-pic" src="https://i.postimg.cc/Vk0dz4G4/Sophie-Dubois.png" alt="Profile picture of Sophie"> <div class="checkbox-container" data-name="Sophie" data-feedback-potential="You saw potential. Did her creativity and success in art exhibitions translate positively (Halo Effect), or did you see transferable planning skills?" data-feedback-notfit="Marked as not a fit. Was her Fine Arts background deemed irrelevant for Project Management (Experience Bias/Stereotyping)?"> <input type="radio" id="ph-r5c3" name="decision-r5c3" value="potential"><label for="ph-r5c3">Potential Hire</label> <input type="radio" id="nf-r5c3" name="decision-r5c3" value="notfit"><label for="nf-r5c3">Not a fit</label> </div> <div class="feedback-display"></div> </div> </div> </div>
+                </div>
+                 <div class="scenario-section"> <p>You are looking to fill a position for a <strong>Project Manager</strong>. Review the profiles, make a selection for each, then submit your decisions for the round.</p> </div>
+                 <div class="round-submit-container"> <button class="round-submit-btn" data-round-index="4" disabled>Submit Round 5 Decisions</button> </div>
+                 <div class="next-round-container" style="display: none;"> <button class="proceed-btn" data-next-round="-1">Show Debrief & Final Record</button> </div>
+            </div>
+
+            </div> <div class="popup-overlay" id="infoPopupOverlay">
+            <div class="popup-box">
+                <h3 id="infoPopupTitle">Round Information</h3>
+                <p id="infoPopupText">Scenario text goes here...</p>
+                <button id="infoPopupBtn">OK</button>
+            </div>
+        </div>
+
+        <div id="debrief-screen">
+            <div class="debrief-box">
+                <h2>Exercise Completed & Debrief</h2>
+                <div class="debrief-section bias-recap">
+                    <h3>Potential Biases Encountered</h3>
+                     <p>This exercise highlighted scenarios where common unconscious biases might influence decisions. Some types potentially encountered include:</p>
+                     <ul>
+                         <li><strong>Halo Effect / Horns Effect:</strong> Letting one positive or negative trait disproportionately influence overall judgment.</li>
+                         <li><strong>Affinity Bias:</strong> Favoring candidates who share similarities with the evaluator.</li>
+                         <li><strong>Stereotyping:</strong> Making assumptions based on group affiliation (e.g., education, background) instead of individual qualifications.</li>
+                         <li><strong>Primacy / Recency Bias:</strong> Giving undue weight to first impressions or the most recent information.</li>
+                         <li><strong>Central Tendency Bias:</strong> Avoiding extreme ratings and clustering candidates in the middle.</li>
+                         <li><strong>Educational/Experience Bias:</strong> Over-valuing specific types of degrees or experiences while potentially undervaluing others.</li>
+                     </ul>
+                     <p><em>Awareness of these biases is the crucial first step toward making more objective and equitable decisions.</em></p>
+                </div>
+                <div class="debrief-section" id="debrief-ticker-section">
+                     <h3>Your Selections</h3>
+                     <div class="ticker-wrap">
+                         <ul class="ticker-content">
+                             </ul>
+                     </div>
+                 </div>
+                <button class="debrief-close-btn">Close Debrief</button>
+            </div>
+        </div>
+
+    </div> <footer>
+        <p>&copy; 2025 Primark | All Rights Reserved</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // Get DOM Elements
+            const introScreen = document.getElementById('intro-screen');
+            const startBtn = document.getElementById('start-exercise-btn');
+            const mainContent = document.getElementById('main-content');
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+            const flipCards = document.querySelectorAll('.flip-card');
+            const roundSubmitBtns = document.querySelectorAll('.round-submit-btn');
+            const allRadioButtons = document.querySelectorAll('.checkbox-container input[type="radio"]');
+            const progressIndicator = document.getElementById('progress-indicator');
+            const proceedBtns = document.querySelectorAll('.proceed-btn');
+            const infoPopupOverlay = document.getElementById('infoPopupOverlay');
+            const infoPopupTitle = document.getElementById('infoPopupTitle');
+            const infoPopupText = document.getElementById('infoPopupText');
+            let infoPopupBtn = document.getElementById('infoPopupBtn');
+            // recordSection reference removed
+            const debriefScreen = document.getElementById('debrief-screen');
+            const debriefCloseBtn = document.querySelector('.debrief-close-btn');
+            const tickerContentUl = document.querySelector('#debrief-screen .ticker-content');
+
+            // State Variables
+            let currentRoundIndex = 0;
+            const totalRounds = contents.length;
+            const cardsPerRound = 3;
+            let tentativeDecisions = {};
+            let roundCompleted = Array(totalRounds).fill(false);
+            let selectionsMadeInRound = Array(totalRounds).fill(0).map(() => new Set());
+
+            // --- Pop-up Functions ---
+            function showInfoPopup(title, text) { if (!infoPopupOverlay) return; infoPopupTitle.textContent = title; infoPopupText.innerText = text.replace(/<\/?strong>/g, ''); if (!infoPopupBtn || !infoPopupBtn.parentNode) { const box = infoPopupOverlay.querySelector('.popup-box'); if (box) { let btn = box.querySelector('button'); if (!btn) { btn = document.createElement('button'); btn.id = 'infoPopupBtn'; box.appendChild(btn); } infoPopupBtn = btn; } } if (infoPopupBtn) { infoPopupBtn.textContent = "OK"; const newBtn = infoPopupBtn.cloneNode(true); infoPopupBtn.parentNode.replaceChild(newBtn, infoPopupBtn); newBtn.addEventListener('click', hideInfoPopup, { once: true }); infoPopupBtn = newBtn; } infoPopupOverlay.style.display = 'flex'; }
+            function hideInfoPopup() { if (infoPopupOverlay) infoPopupOverlay.style.display = 'none'; }
+
+            // --- Core Logic Functions ---
+             function showRoundContent(indexToShow) { if (indexToShow < 0 || indexToShow >= totalRounds) return; contents.forEach((content, i) => { content.style.display = (i === indexToShow) ? 'block' : 'none'; content.classList.toggle('active', i === indexToShow); }); currentRoundIndex = indexToShow; if(progressIndicator) progressIndicator.textContent = `Round ${currentRoundIndex + 1} of ${totalRounds}`; const activeContent = contents[currentRoundIndex]; if (activeContent) { checkRoundCompletionAndUpdateUI(currentRoundIndex); if (!roundCompleted[currentRoundIndex]) { const scenarioElement = activeContent.querySelector('.scenario-section p'); const scenarioText = scenarioElement ? scenarioElement.innerText : "No scenario provided for this round."; setTimeout(() => showInfoPopup(`Round ${currentRoundIndex + 1} Scenario`, scenarioText), 50); } } }
+
+            // updateRecord function removed
+
+            // checkRoundCompletionAndUpdateUI
+            function checkRoundCompletionAndUpdateUI(roundIndex) { if (roundIndex < 0 || roundIndex >= totalRounds) return; const activeContent = contents[roundIndex]; const roundSubmitBtn = activeContent.querySelector(`.round-submit-btn[data-round-index="${roundIndex}"]`); const roundSubmitContainer = activeContent.querySelector('.round-submit-container'); const nextRoundContainer = activeContent.querySelector('.next-round-container'); const radiosInRound = activeContent.querySelectorAll('.checkbox-container input[type="radio"]'); const cardsInRound = activeContent.querySelectorAll('.flip-card'); if (roundCompleted[roundIndex]) { if(roundSubmitContainer) roundSubmitContainer.style.display = 'none'; if(nextRoundContainer) nextRoundContainer.style.display = 'block'; radiosInRound.forEach(radio => radio.disabled = true); cardsInRound.forEach(card => { const checkboxContainer = card.querySelector('.checkbox-container'); const feedbackDisplay = card.querySelector('.feedback-display'); const radioElement = checkboxContainer?.querySelector('input[type="radio"]'); const radioName = radioElement?.name; const decisionData = tentativeDecisions[roundIndex]?.[radioName]; if (decisionData && feedbackDisplay && radioName) { let feedback = ''; if(decisionData === 'potential'){ feedback = checkboxContainer.dataset.feedbackPotential || "Feedback unavailable."; } else { feedback = checkboxContainer.dataset.feedbackNotfit || "Feedback unavailable.";} feedbackDisplay.innerHTML = feedback; feedbackDisplay.classList.add('visible'); checkboxContainer.querySelectorAll('input[type="radio"]').forEach(radio => { radio.checked = (radio.value === decisionData); }); } else if (feedbackDisplay) { feedbackDisplay.classList.remove('visible'); feedbackDisplay.innerHTML = ''; } }); } else { if(roundSubmitContainer) roundSubmitContainer.style.display = 'block'; if(nextRoundContainer) nextRoundContainer.style.display = 'none'; const selectionsCount = selectionsMadeInRound[roundIndex]?.size || 0; if (roundSubmitBtn) { roundSubmitBtn.disabled = (selectionsCount < cardsPerRound); } radiosInRound.forEach(radio => radio.disabled = false); activeContent.querySelectorAll('.feedback-display').forEach(fb => { fb.classList.remove('visible'); fb.innerHTML = ''; }); radiosInRound.forEach(radio => { const decisionData = tentativeDecisions[roundIndex]?.[radio.name]; radio.checked = (decisionData && radio.value === decisionData); }); } }
+
+            // --- Function to Show Debrief (Populates Ticker) ---
+             function showDebrief() {
+                 if (mainContent) mainContent.style.display = 'none';
+                 if (progressIndicator) progressIndicator.style.display = 'none';
+                 if (tickerContentUl) {
+                     tickerContentUl.innerHTML = ''; // Clear previous items
+                     let allItemsHTML = '';
+                     try {
+                         for (let roundIdx = 0; roundIdx < totalRounds; roundIdx++) {
+                              const currentContent = contents[roundIdx];
+                              if (tentativeDecisions[roundIdx] && currentContent) {
+                                 const roundDecisions = tentativeDecisions[roundIdx];
+                                 const cardsInRound = currentContent.querySelectorAll('.flip-card');
+                                 cardsInRound.forEach(card => {
+                                      const checkboxContainer = card.querySelector('.checkbox-container');
+                                      const radioElement = checkboxContainer?.querySelector('input[type="radio"]');
+                                      const radioName = radioElement?.name;
+                                      const candidateName = checkboxContainer?.dataset.name || 'Unknown';
+
+                                      // Retrieve image source from the card back's image tag
+                                      const imgElement = card.querySelector('.flip-card-back .profile-pic');
+                                      const imgSrc = imgElement ? imgElement.src : ''; // Default empty if not found
+                                      const imgAlt = imgElement ? imgElement.alt : `Profile picture of ${candidateName}`;
+
+                                      if (radioName) {
+                                          const decisionValue = roundDecisions[radioName];
+                                          if (decisionValue) {
+                                              let decisionText = ''; let decisionClass = '';
+                                              if (decisionValue === 'potential') { decisionText = 'Potential Hire'; decisionClass = 'decision-potential'; }
+                                              else { decisionText = 'Not a fit'; decisionClass = 'decision-notfit'; }
+                                              // Add image tag to list item HTML
+                                              allItemsHTML += `<li>
+                                                                 <img src="${imgSrc}" alt="${imgAlt}" class="ticker-profile-pic">
+                                                                 <strong>${candidateName}:</strong> <span class="${decisionClass}">${decisionText}</span>
+                                                             </li>`;
+                                          }
+                                      }
+                                 });
+                             }
+                         }
+                         if(allItemsHTML === '') { allItemsHTML = '<li>No selections recorded.</li>'; }
+                         tickerContentUl.innerHTML = allItemsHTML + allItemsHTML; // Duplicate for ticker loop
+                     } catch (error) {
+                         console.error("Error populating ticker:", error);
+                         tickerContentUl.innerHTML = '<li>Error loading record.</li>';
+                     }
+                 } else { console.error("Ticker content UL not found!"); }
+                 if (debriefScreen) debriefScreen.style.display = 'flex';
+             }
+
+            // --- Event Listeners ---
+             if (startBtn) { startBtn.addEventListener('click', () => { if (introScreen) introScreen.style.display = 'none'; if (mainContent) mainContent.style.display = 'flex'; showRoundContent(0); }, { once: true }); }
+             else { if (mainContent) mainContent.style.display = 'flex'; showRoundContent(0); }
+
+            flipCards.forEach(card => { card.addEventListener('click', (event) => { const cardBack = event.target.closest('.flip-card-back'); const isClickOnBackInteractive = cardBack && (event.target.tagName === 'INPUT' || event.target.tagName === 'LABEL' || event.target.closest('.feedback-display')); if (!isClickOnBackInteractive) { card.classList.toggle('flipped'); } }); });
+            allRadioButtons.forEach(radio => { radio.addEventListener('change', (event) => { const containingTabContent = radio.closest('.tab-content'); let radioRoundIndex = -1; contents.forEach((content, index) => { if (content === containingTabContent) radioRoundIndex = index; }); if (radioRoundIndex === -1 || roundCompleted[radioRoundIndex]) return; const radioName = event.target.name; const selectedValue = event.target.value; if (!tentativeDecisions[radioRoundIndex]) tentativeDecisions[radioRoundIndex] = {}; tentativeDecisions[radioRoundIndex][radioName] = selectedValue; selectionsMadeInRound[radioRoundIndex].add(radioName); checkRoundCompletionAndUpdateUI(radioRoundIndex); }); });
+
+            // Round Submit Button Handler
+            roundSubmitBtns.forEach(btn => {
+                btn.addEventListener('click', (event) => {
+                    const roundIndex = parseInt(event.target.getAttribute('data-round-index'), 10);
+                    if (roundCompleted[roundIndex]) return;
+                    if ((selectionsMadeInRound[roundIndex]?.size || 0) < cardsPerRound) { alert("Please make a selection for all candidates before submitting."); return; }
+                    let allSelectionsFound = true;
+                    const activeContent = contents[roundIndex];
+                    const cardsInRound = activeContent.querySelectorAll('.flip-card');
+                     cardsInRound.forEach(card => { const radioName = card.querySelector('.checkbox-container input[type="radio"]').name; if (!tentativeDecisions[roundIndex]?.[radioName]) { allSelectionsFound = false; } });
+                    if (!allSelectionsFound) { alert("An error occurred. Could not verify all selections."); return; }
+                    roundCompleted[roundIndex] = true;
+                    if(tabs[roundIndex]) tabs[roundIndex].classList.add('completed'); // Mark state
+                    // No visual record update needed here
+                    checkRoundCompletionAndUpdateUI(roundIndex); // Update UI to show feedback etc.
+                    alert(`Round ${roundIndex + 1} decisions recorded. Review feedback on cards, then click 'Proceed' to continue.`);
+                });
+            });
+
+            // Proceed Button Handler
+            proceedBtns.forEach(btn => { btn.addEventListener('click', (event) => { const nextRound = parseInt(event.target.getAttribute('data-next-round'), 10); if (nextRound === -1) { showDebrief(); } else { showRoundContent(nextRound); } }); });
+
+            // Debrief Close Button
+             if (debriefCloseBtn) { debriefCloseBtn.addEventListener('click', () => { if (debriefScreen) debriefScreen.style.display = 'none'; }); }
+
+            // --- Initialization ---
+            if (mainContent) mainContent.style.display = 'none';
+            if (introScreen) introScreen.style.display = 'flex';
+            for(let i = 0; i < totalRounds; i++){ tentativeDecisions[i] = {}; selectionsMadeInRound[i] = new Set(); }
+
+        }); // End DOMContentLoaded
+    </script>
+
+</body>
+</html>
